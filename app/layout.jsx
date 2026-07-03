@@ -1,3 +1,5 @@
+import Providers from './providers'
+
 export const metadata = {
   title: 'Pro Home Services & Construction Management',
   description: 'High-quality residential and commercial maintenance, renovation, and construction services. Available 24/7 for emergencies.',
@@ -13,7 +15,7 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/logo.png" />
       </head>
       <body style={{ margin: 0, padding: 0 }}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
