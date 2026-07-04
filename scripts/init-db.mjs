@@ -5,8 +5,10 @@
 //   2. vercel env pull .env.local       (trae las variables de Postgres/Blob desde Vercel)
 //   3. node scripts/init-db.mjs tu@email.com "tu-contraseña" "Tu Nombre"
 //
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
+
+const sql = neon(process.env.DATABASE_URL);
 
 const [, , email, password, name] = process.argv;
 
