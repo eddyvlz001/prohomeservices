@@ -268,7 +268,10 @@ export default function ProHomeServices({ portfolio }) {
   const [lightbox,setLightbox]   = useState(null);
   const [openFaq,setOpenFaq]     = useState(null);
   const [submitted,setSubmitted] = useState(false);
+  const [sending,setSending]     = useState(false);
+  const [sendError,setSendError] = useState("");
   const [form,setForm]           = useState({name:"",phone:"",email:"",service:"",message:""});
+  const [mobileOpen,setMobileOpen] = useState(false);
   const heroRef = useRef(null);
 
   useEffect(()=>{
@@ -277,11 +280,32 @@ export default function ProHomeServices({ portfolio }) {
     return()=>window.removeEventListener("scroll",fn);
   },[]);
 
-  const go=(id)=>document.getElementById(id)?.scrollIntoView({behavior:"smooth"});
+  const go=(id)=>{ document.getElementById(id)?.scrollIntoView({behavior:"smooth"}); setMobileOpen(false); };
   const prevImg = useCallback(()=>setLightbox(i=>(i-1+portfolio.length)%portfolio.length),[portfolio.length]);
   const nextImg = useCallback(()=>setLightbox(i=>(i+1)%portfolio.length),[portfolio.length]);
 
   const NAV=[{id:"services",l:"Services"},{id:"portfolio",l:"Portfolio"},{id:"about",l:"About"},{id:"contact",l:"Contact"}];
+
+  async function handleContactSubmit(e){
+    e.preventDefault();
+    setSendError("");
+    setSending(true);
+    try{
+      const res = await fetch("/api/contact",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || "No se pudo enviar el mensaje.");
+      setSubmitted(true);
+      setForm({name:"",phone:"",email:"",service:"",message:""});
+    }catch(err){
+      setSendError(err.message || "Error de conexión. Intenta de nuevo o llamanos directo.");
+    }finally{
+      setSending(false);
+    }
+  }
 
   return (
     <>
@@ -367,6 +391,20 @@ export default function ProHomeServices({ portfolio }) {
           display:flex;justify-content:space-between;align-items:center;cursor:pointer;
           font-family:'Jost',sans-serif;font-size:15px;font-weight:500;color:#2d1f0f;transition:color .3s}
         .faq-q:hover{color:var(--gold-d)}
+
+        /* ══ RESPONSIVE ═════════════════════════════════════ */
+        @media (max-width:860px){
+          .nav-links-desktop{display:none!important}
+          .nav-hamburger{display:flex!important}
+          .grid-services{grid-template-columns:1fr!important}
+          .grid-portfolio{grid-template-columns:1fr!important;grid-template-rows:none!important}
+          .grid-portfolio .port-thumb{height:260px!important}
+          .grid-2{grid-template-columns:1fr!important}
+          .grid-sidebar{grid-template-columns:1fr!important}
+          .grid-footer{grid-template-columns:1fr!important;gap:36px!important}
+          .grid-form-2{grid-template-columns:1fr!important}
+          .hero-stats{gap:26px!important;flex-wrap:wrap!important}
+        }
       `}</style>
 
       {lightbox!==null && <Lightbox items={portfolio} activeIndex={lightbox} onClose={()=>setLightbox(null)} onPrev={prevImg} onNext={nextImg}/>}
@@ -390,7 +428,7 @@ export default function ProHomeServices({ portfolio }) {
                   transition:"height .4s",
                   filter:scrolled?"none":"brightness(1.08) drop-shadow(0 2px 8px rgba(0,0,0,.4))"}}/>
             </button>
-            <div style={{display:"flex",gap:"36px",alignItems:"center"}}>
+            <div className="nav-links-desktop" style={{display:"flex",gap:"36px",alignItems:"center"}}>
               {NAV.map(n=>(
                 <button key={n.id} className={`nav-link ${scrolled?"nl-dark":"nl-light"}`} onClick={()=>go(n.id)}>{n.l}</button>
               ))}
@@ -398,7 +436,39 @@ export default function ProHomeServices({ portfolio }) {
                 Free Quote <Icon name="arrow" size={13} color="#fff"/>
               </button>
             </div>
+            <button
+              className="nav-hamburger"
+              aria-label={mobileOpen?"Close menu":"Open menu"}
+              onClick={()=>setMobileOpen(o=>!o)}
+              style={{display:"none",background:"none",border:"none",cursor:"pointer",padding:"8px",flexDirection:"column",gap:"5px"}}
+            >
+              <span style={{display:"block",width:"24px",height:"2px",background:scrolled?"#1c0f06":"#fff",
+                transition:"transform .3s",transform:mobileOpen?"translateY(7px) rotate(45deg)":"none"}}/>
+              <span style={{display:"block",width:"24px",height:"2px",background:scrolled?"#1c0f06":"#fff",
+                transition:"opacity .3s",opacity:mobileOpen?0:1}}/>
+              <span style={{display:"block",width:"24px",height:"2px",background:scrolled?"#1c0f06":"#fff",
+                transition:"transform .3s",transform:mobileOpen?"translateY(-7px) rotate(-45deg)":"none"}}/>
+            </button>
           </div>
+
+          {mobileOpen && (
+            <div className="nav-mobile-panel" style={{
+              background:"#1c0f06",padding:"12px clamp(20px,4vw,64px) 28px",
+              display:"flex",flexDirection:"column",gap:"4px",
+            }}>
+              {NAV.map(n=>(
+                <button key={n.id} onClick={()=>go(n.id)} style={{
+                  background:"none",border:"none",textAlign:"left",padding:"14px 0",
+                  color:"rgba(255,255,255,.85)",fontFamily:"'Jost',sans-serif",fontSize:"14px",
+                  letterSpacing:"2px",textTransform:"uppercase",cursor:"pointer",
+                  borderBottom:"1px solid rgba(255,255,255,.08)",
+                }}>{n.l}</button>
+              ))}
+              <button className="btn-gold" style={{padding:"14px 22px",fontSize:"11px",marginTop:"18px",justifyContent:"center"}} onClick={()=>go("contact")}>
+                Free Quote <Icon name="arrow" size={13} color="#fff"/>
+              </button>
+            </div>
+          )}
         </nav>
 
         {/* ══ HERO ════════════════════════════════════════════ */}
@@ -433,7 +503,7 @@ export default function ProHomeServices({ portfolio }) {
                 <button className="btn-ghost" onClick={()=>go("contact")}>Free Consultation</button>
               </div>
               {/* Stats — only time-based facts, no project count */}
-              <div style={{display:"flex",gap:"44px",marginTop:"64px",paddingTop:"40px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
+              <div className="hero-stats" style={{display:"flex",gap:"44px",marginTop:"64px",paddingTop:"40px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
                 {[["24/7","Emergency Line"],["10+","Years of Experience"],["100%","Satisfaction Goal"]].map(([n,l])=>(
                   <div key={l}>
                     <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(30px,4vw,50px)",fontWeight:400,color:"#c9a96e",lineHeight:1}}>{n}</div>
@@ -476,7 +546,7 @@ export default function ProHomeServices({ portfolio }) {
                 Six core disciplines. One trusted team. Every project handled with the expertise and care your space deserves.
               </p>
             </Reveal>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"2px"}}>
+            <div className="grid-services" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"2px"}}>
               {SERVICES.map((s,i)=>(
                 <Reveal key={i} delay={i*65}>
                   <div className="svc-card">
@@ -518,7 +588,7 @@ export default function ProHomeServices({ portfolio }) {
                 Click any image<br/>to view full project
               </p>
             </Reveal>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"290px 290px 290px",gap:"3px"}}>
+            <div className="grid-portfolio" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"290px 290px 290px",gap:"3px"}}>
               {portfolio.map((p,i)=>{
                 const wide = p.wide ?? (i===0||i===5||i===6);
                 return (
@@ -546,7 +616,7 @@ export default function ProHomeServices({ portfolio }) {
 
         {/* ══ ABOUT ══════════════════════════════════════════ */}
         <section id="about" style={{padding:"120px clamp(24px,5vw,80px)",background:"var(--cream)"}}>
-          <div style={{maxWidth:"1280px",margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"80px",alignItems:"center"}}>
+          <div className="grid-2" style={{maxWidth:"1280px",margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"80px",alignItems:"center"}}>
             <Reveal dir="left">
               <div style={{position:"relative",height:"540px"}}>
                 <img src={IMG.about1} alt="professional worker" style={{position:"absolute",top:0,left:0,width:"72%",height:"78%",objectFit:"cover"}}/>
@@ -569,7 +639,7 @@ export default function ProHomeServices({ portfolio }) {
               <p style={{fontSize:"15px",color:"var(--muted)",lineHeight:1.88,marginBottom:"40px",fontWeight:300}}>
                 Whether transforming a kitchen, responding to a plumbing emergency at midnight, or giving an office a complete overhaul — we bring the same level of dedication to every project.
               </p>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"20px",marginBottom:"40px"}}>
+              <div className="grid-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"20px",marginBottom:"40px"}}>
                 {[
                   {icon:"clock",  title:"Always Punctual",   desc:"We respect your schedule"},
                   {icon:"award",  title:"Master Craftsmen",  desc:"10+ years avg. experience"},
@@ -604,7 +674,7 @@ export default function ProHomeServices({ portfolio }) {
                 Words From Our <em style={{fontStyle:"italic",color:"var(--gold)"}}>Satisfied Clients</em>
               </h2>
             </Reveal>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"20px"}}>
+            <div className="grid-2" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"20px"}}>
               {TESTIMONIALS.map((t,i)=>(
                 <Reveal key={i} delay={i*80}>
                   <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(201,169,110,.16)",
@@ -669,7 +739,7 @@ export default function ProHomeServices({ portfolio }) {
 
         {/* ══ FAQ ════════════════════════════════════════════ */}
         <section style={{padding:"120px clamp(24px,5vw,80px)",background:"var(--warm)"}}>
-          <div style={{maxWidth:"1280px",margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1.55fr",gap:"80px",alignItems:"start"}}>
+          <div className="grid-sidebar" style={{maxWidth:"1280px",margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1.55fr",gap:"80px",alignItems:"start"}}>
             <Reveal dir="left">
               <Label text="FAQ"/>
               <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(30px,4.5vw,52px)",fontWeight:400,color:"var(--brown)",lineHeight:1.1,letterSpacing:"-.5px",marginBottom:"20px"}}>
@@ -712,7 +782,7 @@ export default function ProHomeServices({ portfolio }) {
                 Start Your <em style={{fontStyle:"italic",color:"var(--gold-d)"}}>Project Today</em>
               </h2>
             </Reveal>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1.55fr",gap:"64px",alignItems:"start"}}>
+            <div className="grid-sidebar" style={{display:"grid",gridTemplateColumns:"1fr 1.55fr",gap:"64px",alignItems:"start"}}>
               <Reveal dir="left" delay={100}>
                 <h3 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"26px",fontWeight:500,color:"var(--brown)",marginBottom:"10px"}}>Schedule a Free Consultation</h3>
                 <p style={{fontSize:"14px",color:"var(--muted)",lineHeight:1.8,marginBottom:"36px",fontWeight:300}}>
@@ -758,9 +828,9 @@ export default function ProHomeServices({ portfolio }) {
                     <button className="btn-outline" onClick={()=>setSubmitted(false)}>Send Another</button>
                   </div>
                 ):(
-                  <form onSubmit={e=>{e.preventDefault();setSubmitted(true);}}
+                  <form onSubmit={handleContactSubmit}
                     style={{background:"var(--card)",border:"1px solid var(--border)",padding:"48px"}}>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"28px",marginBottom:"28px"}}>
+                    <div className="grid-form-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"28px",marginBottom:"28px"}}>
                       <div>
                         <label style={{fontFamily:"'Jost',sans-serif",fontSize:"9px",letterSpacing:"3px",color:"var(--muted)",display:"block",marginBottom:"10px",textTransform:"uppercase"}}>Full Name</label>
                         <input className="field" placeholder="Your name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
@@ -785,8 +855,11 @@ export default function ProHomeServices({ portfolio }) {
                       <label style={{fontFamily:"'Jost',sans-serif",fontSize:"9px",letterSpacing:"3px",color:"var(--muted)",display:"block",marginBottom:"10px",textTransform:"uppercase"}}>Project Details</label>
                       <textarea className="field" rows={5} placeholder="Describe your project, timeline, and any relevant details..." value={form.message} onChange={e=>setForm({...form,message:e.target.value})} style={{resize:"vertical"}}/>
                     </div>
-                    <button type="submit" className="btn-gold" style={{width:"100%",justifyContent:"center",padding:"16px"}}>
-                      Send Message — Get Free Estimate <Icon name="arrow" size={15} color="#fff"/>
+                    {sendError && (
+                      <p style={{color:"#b23b3b",fontSize:"13px",marginBottom:"20px",lineHeight:1.6}}>{sendError}</p>
+                    )}
+                    <button type="submit" disabled={sending} className="btn-gold" style={{width:"100%",justifyContent:"center",padding:"16px",opacity:sending?0.7:1,cursor:sending?"default":"pointer"}}>
+                      {sending? "Sending..." : "Send Message — Get Free Estimate"} {!sending && <Icon name="arrow" size={15} color="#fff"/>}
                     </button>
                     <p style={{textAlign:"center",fontFamily:"'Jost',sans-serif",fontSize:"11px",color:"var(--muted)",marginTop:"14px",fontWeight:300}}>We respond within 24 hours · No spam, ever</p>
                   </form>
@@ -799,7 +872,7 @@ export default function ProHomeServices({ portfolio }) {
         {/* ══ FOOTER ═════════════════════════════════════════ */}
         <footer style={{background:"var(--brown)",padding:"72px clamp(24px,5vw,80px) 32px"}}>
           <div style={{maxWidth:"1280px",margin:"0 auto"}}>
-            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1.2fr",gap:"48px",marginBottom:"56px"}}>
+            <div className="grid-footer" style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1.2fr",gap:"48px",marginBottom:"56px"}}>
               <div>
                 <img src={LOGO_B64} alt="Pro Home Services" style={{height:"64px",width:"auto",objectFit:"contain",marginBottom:"20px",display:"block"}}/>
                 <p style={{fontSize:"13px",color:"rgba(255,255,255,.32)",lineHeight:1.85,maxWidth:"280px",fontWeight:300,marginBottom:"24px"}}>
